@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  blockchain:
+    image: trufflesuite/ganache
+    ports:
+      - "8545:8545"
+    command:
+      - --chainId
+      - "31337"
+      - --accounts
+      - "10"
+      - --defaultBalanceEther
+      - "100"
+
+  deployer:
+    build: .
+    depends_on:
+      - blockchain
+    environment:
+      - HARDHAT_NETWORK=localhost
