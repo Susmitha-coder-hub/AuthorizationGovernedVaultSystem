@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   blockchain:
     image: trufflesuite/ganache
@@ -14,7 +12,9 @@ services:
       - "100"
 
   deployer:
-    build: .
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
     depends_on:
       - blockchain
     environment:
