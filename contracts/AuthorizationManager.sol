@@ -2,48 +2,56 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract AuthorizationManager {
+contract AuthorizationManager is Ownable {
     using ECDSA for bytes32;
+    using MessageHashUtils for bytes32;
 
-    address public immutable signer;
-    uint256 public immutable chainId;
-
-    // authHash => used or not
     mapping(bytes32 => bool) public consumed;
+    mapping(address => bool) public validVaults;
 
     event AuthorizationConsumed(bytes32 indexed authHash);
+    event VaultRegistered(address vault);
 
-    constructor(address _signer) {
-        signer = _signer;
-        chainId = block.chainid;
+    constructor() Ownable(msg.sender) {}
+
+    function registerVault(address vault) external onlyOwner {
+        require(vault != address(0), "Invalid vault");
+        validVaults[vault] = true;
+        emit VaultRegistered(vault);
+    }
+
+    function getAuthorizationHash(
+        address vault,
+        address recipient,
+        uint256 amount,
+        uint256 chainId,
+        bytes32 nonce
+    ) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(vault, recipient, amount, chainId, nonce));
     }
 
     function verifyAuthorization(
         address vault,
         address recipient,
         uint256 amount,
+        uint256 chainId,
         bytes32 nonce,
         bytes calldata signature
     ) external returns (bool) {
-        bytes32 messageHash = keccak256(
-            abi.encode(
-                vault,
-                chainId,
-                recipient,
-                amount,
-                nonce
-            )
-        );
+        require(validVaults[msg.sender], "Unregistered vault");
 
-        bytes32 ethSigned = messageHash.toEthSignedMessageHash();
+        bytes32 authHash = getAuthorizationHash(vault, recipient, amount, chainId, nonce);
+        require(!consumed[authHash], "Authorization already used");
 
-        require(!consumed[ethSigned], "Authorization already used");
-        require(ethSigned.recover(signature) == signer, "Invalid signature");
+        bytes32 ethHash = authHash.toEthSignedMessageHash();
+        address signer = ECDSA.recover(ethHash, signature);
+        require(signer == owner(), "Invalid signature");
 
-        consumed[ethSigned] = true;
-
-        emit AuthorizationConsumed(ethSigned);
+        consumed[authHash] = true;
+        emit AuthorizationConsumed(authHash);
         return true;
     }
 }
