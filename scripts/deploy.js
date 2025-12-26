@@ -1,24 +1,24 @@
-const hre = require("hardhat");
+import hre from "hardhat";
 
 async function main() {
   const [deployer] = await hre.ethers.getSigners();
-
   console.log("Deployer:", deployer.address);
-  console.log("Chain ID:", await deployer.provider.getNetwork().then(n => n.chainId));
 
-  const AuthorizationManager = await hre.ethers.getContractFactory("AuthorizationManager");
-  const authManager = await AuthorizationManager.deploy(deployer.address);
-  await authManager.waitForDeployment();
+  const Auth = await hre.ethers.getContractFactory("AuthorizationManager");
+  const auth = await Auth.deploy(deployer.address);
+  await auth.waitForDeployment();
 
-  const SecureVault = await hre.ethers.getContractFactory("SecureVault");
-  const vault = await SecureVault.deploy(await authManager.getAddress());
+  const Vault = await hre.ethers.getContractFactory("SecureVault");
+  const vault = await Vault.deploy(await auth.getAddress());
   await vault.waitForDeployment();
 
-  console.log("AuthorizationManager:", await authManager.getAddress());
+  console.log("AuthorizationManager:", await auth.getAddress());
   console.log("SecureVault:", await vault.getAddress());
+
+  // ✅ REGISTER VAULT EVERY TIME
+  const tx = await auth.registerVault(await vault.getAddress(), true);
+  await tx.wait();
+  console.log("Vault registered successfully.");
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main().catch(console.error);
