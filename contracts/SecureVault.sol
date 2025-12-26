@@ -6,18 +6,20 @@ interface IAuthorizationManager {
         address vault,
         address recipient,
         uint256 amount,
+        uint256 chainId,
         bytes32 nonce,
         bytes calldata signature
     ) external returns (bool);
 }
 
 contract SecureVault {
-    IAuthorizationManager public immutable authManager;
+    IAuthorizationManager public authManager;
 
-    event Deposit(address indexed sender, uint256 amount);
-    event Withdrawal(address indexed recipient, uint256 amount);
+    event Deposit(address indexed from, uint256 amount);
+    event Withdrawal(address indexed to, uint256 amount);
 
     constructor(address _authManager) {
+        require(_authManager != address(0), "Invalid auth manager");
         authManager = IAuthorizationManager(_authManager);
     }
 
@@ -31,24 +33,19 @@ contract SecureVault {
         bytes32 nonce,
         bytes calldata signature
     ) external {
-        require(
-            authManager.verifyAuthorization(
-                address(this),
-                recipient,
-                amount,
-                nonce,
-                signature
-            ),
-            "Authorization failed"
+        require(address(this).balance >= amount, "Insufficient balance");
+
+        bool ok = authManager.verifyAuthorization(
+            address(this),
+            recipient,
+            amount,
+            block.chainid,
+            nonce,
+            signature
         );
 
-        require(address(this).balance >= amount, "Insufficient vault balance");
-
-        // Effects before interaction
+        require(ok, "Authorization failed");
+        payable(recipient).transfer(amount);
         emit Withdrawal(recipient, amount);
-
-        // Interaction
-        (bool success, ) = recipient.call{value: amount}("");
-        require(success, "ETH transfer failed");
     }
 }
