@@ -4,12 +4,11 @@ services:
     ports:
       - "8545:8545"
     command:
-      - --chainId
-      - "31337"
-      - --accounts
-      - "10"
-      - --defaultBalanceEther
-      - "100"
+  - --accounts
+  - "10"
+  - --defaultBalanceEther
+  - "100"
+
 
   deployer:
     build:
@@ -19,3 +18,4 @@ services:
       - blockchain
     environment:
       - HARDHAT_NETWORK=localhost
+
