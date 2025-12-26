@@ -1,33 +1,65 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-describe("Secure Vault System", function () {
-  it("Allows withdrawal only once per authorization", async function () {
-    const [signer, user] = await ethers.getSigners();
+describe("SecureVault System Invariants", function () {
 
-    const Auth = await ethers.getContractFactory("AuthorizationManager");
-    const auth = await Auth.deploy(signer.address);
+  let vault, authManager, owner, user;
 
-    const Vault = await ethers.getContractFactory("SecureVault");
-    const vault = await Vault.deploy(await auth.getAddress());
+  beforeEach(async () => {
+  [owner, user] = await ethers.getSigners();
 
-    await signer.sendTransaction({
-      to: await vault.getAddress(),
-      value: ethers.parseEther("1")
-    });
+  const Auth = await ethers.getContractFactory("AuthorizationManager");
+  authManager = await Auth.deploy();
+  await authManager.waitForDeployment();
 
-    const nonce = ethers.keccak256(ethers.toUtf8Bytes("unique"));
-    const msgHash = ethers.solidityPackedKeccak256(
-      ["address", "uint256", "address", "uint256", "bytes32"],
-      [await vault.getAddress(), 31337, user.address, ethers.parseEther("0.5"), nonce]
+  const Vault = await ethers.getContractFactory("SecureVault");
+  vault = await Vault.deploy(await authManager.getAddress());
+  await vault.waitForDeployment();
+
+  // 🔥 THIS WAS MISSING
+  await authManager.registerVault(await vault.getAddress());
+
+  await owner.sendTransaction({
+    to: await vault.getAddress(),
+    value: ethers.parseEther("2")
+  });
+});
+
+
+  function buildAuth(amount, nonce) {
+    return ethers.keccak256(
+      ethers.solidityPacked(
+        ["address","address","uint256","uint256","bytes32"],
+        [vault.target, user.address, amount, 31337, nonce]
+      )
     );
+  }
 
-    const signature = await signer.signMessage(ethers.getBytes(msgHash));
+  it("Prevents replay attack", async () => {
+    const amount = ethers.parseEther("1");
+    const nonce = ethers.keccak256(ethers.toUtf8Bytes("replay"));
 
-    await vault.withdraw(user.address, ethers.parseEther("0.5"), nonce, signature);
+    const hash = buildAuth(amount, nonce);
+    const signature = await owner.signMessage(ethers.getBytes(hash));
+
+    await vault.withdraw(user.address, amount, nonce, signature);
 
     await expect(
-      vault.withdraw(user.address, ethers.parseEther("0.5"), nonce, signature)
+      vault.withdraw(user.address, amount, nonce, signature)
+    ).to.be.revertedWith("Authorization already used");
+  });
+
+  it("Fails on wrong amount", async () => {
+    const amount = ethers.parseEther("1");
+    const wrong = ethers.parseEther("2");
+    const nonce = ethers.keccak256(ethers.toUtf8Bytes("wrong"));
+
+    const hash = buildAuth(amount, nonce);
+    const signature = await owner.signMessage(ethers.getBytes(hash));
+
+    await expect(
+      vault.withdraw(user.address, wrong, nonce, signature)
     ).to.be.reverted;
   });
+
 });
