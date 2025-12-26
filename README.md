@@ -1,11 +1,4 @@
-Your README content is correct in **idea**, but the **formatting is broken** (mixed code blocks, headings, and text).
-Below is a **clean, correct, copy-paste–ready README.md** with **clear execution steps**.
 
----
-
-# ✅ **Corrected `README.md` (FINAL)**
-
-````md
 # Secure Vault System
 
 ## Overview
@@ -168,22 +161,3 @@ Expected result:
 * Authorizations cannot be reused
 * Withdrawals revert deterministically on failure
 * System is safe under repeated or unexpected calls
-
-```
-
----
-
-# 🎯 What You Can Say in an Interview
-
-> “I built a two-contract vault system where custody and authorization are separated. Withdrawals require off-chain signed permissions that are verified and consumed exactly once on-chain, preventing replay attacks and double-spends. The system is dockerized and fully reproducible locally.”
-
----
-
-If you want next, I can:
-- Show **exact off-chain JS code to generate signatures**
-- Add **EIP-712 typed data**
-- Convert this to **Foundry**
-- Add **reentrancy protection discussion**
-
-Just tell me 👍
-```
