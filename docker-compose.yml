@@ -1,21 +1,12 @@
+
+version: "3.9"
+
 services:
-  blockchain:
-    image: trufflesuite/ganache
-    ports:
-      - "8545:8545"
-    command:
-  - --accounts
-  - "10"
-  - --defaultBalanceEther
-  - "100"
-
-
-  deployer:
+  secure-vault:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    depends_on:
-      - blockchain
-    environment:
-      - HARDHAT_NETWORK=localhost
-
+    ports:
+      - "8545:8545"
+    volumes:
+      - .:/app
